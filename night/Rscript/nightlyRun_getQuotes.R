@@ -1,6 +1,7 @@
 #!/usr/bin/Rscript --vanilla
 # This script downloads price data information and calculates current pattern classification for each
 # symbol. Matches with promising patterns are stored and included in the daily report.
+# a list of symbols that could not be retrieved are stored in a logfile
 
 start.time <- Sys.time()
 print (paste("script started:", start.time))
@@ -9,11 +10,13 @@ print (paste("script started:", start.time))
 targetSymsFile <- "/home/voellenk/tronador_workdir/tronador/targetSyms/targetSyms.Rdata"
 dailyQuoteDir <- "/home/voellenk/tronador/dailyQuotes"
 plotDir <- "/home/voellenk/tronador/plots"
-historyYears <- 4
+logDir <- "/home/voellenk/.tronadorlog"
+historyYears <- 3
 
 # load required packages
 suppressPackageStartupMessages(library(optparse))
 suppressPackageStartupMessages(library(quantmod))
+suppressPackageStartupMessages(library(quantify))
 options("getSymbols.warning4.0"=FALSE)
 
 option_list <- list(
@@ -36,6 +39,12 @@ args <- commandArgs(trailingOnly=TRUE)
 if (!file.exists(dailyQuoteDir)) {
   print (paste("creating directory", dailyQuoteDir))
   dir.create(dailyQuoteDir, recursive=TRUE)
+}
+
+# create log dir if not exists. Retrieved Quotes are stored there.
+if (!file.exists(logDir)) {
+  print (paste("creating directory", logDir))
+  dir.create(logDir, recursive=TRUE)
 }
 
 # create plots dir if argument -p and dir doesn't exist
@@ -79,27 +88,22 @@ while (!finish) {
       print (paste("...retrieving", this.sym))
     }
     try(TS <- getSymbols(this.sym, from=startDate, auto.assign=FALSE, adjust=TRUE), silent=TRUE)
-    if ("xts" %in% class(TS)) {
-      if (nrow(TS) > 249*historyYears) {
-        # store xts object in TS environment and mark download as success
-        assign(this.sym, TS, envir=TSDATA)
-        symsDF[symsDF$sym==this.sym, "success"] <- 1
-        # print (paste("successfully downloaded ", this.sym))
-        # store chart as png
-        if (opt$plot==TRUE) {
-          png(filename=paste0(plotDir, "/", this.sym, ".png"))
-          plot(Cl(TS), main=this.sym, type="p", pch=20)
-          dev.off()          
-        }
-      } else {
-        # too few observations
-        symsDF[symsDF$sym==this.sym, "count"] <- symsDF[symsDF$sym==this.sym, "count"] + 1
-        print (paste("PROBLEM downloading symbol (too few observations): ", this.sym))
-      }
+    # if retrieved time series is sane, keep on processing
+    if (qCheckTSforValidity(TS, 240*historyYears)) {
+      # store xts object in TS environment and mark download as success
+      assign(this.sym, TS, envir=TSDATA)
+      symsDF[symsDF$sym==this.sym, "success"] <- 1
+      # print (paste("successfully downloaded ", this.sym))
+      # store chart as png
+      if (opt$plot==TRUE) {
+        png(filename=paste0(plotDir, "/", this.sym, ".png"))
+        plot(Cl(TS), main=this.sym, type="p", pch=20)
+        dev.off()          
+      }      
     } else {
       # download went wrong
       symsDF[symsDF$sym==this.sym, "count"] <- symsDF[symsDF$sym==this.sym, "count"] + 1
-      print (paste("PROBLEM downloading symbol: ", this.sym))
+      print (paste("PROBLEM downloading symbol: ", this.sym))      
     }
   } else {
     finish <- TRUE
@@ -110,6 +114,11 @@ while (!finish) {
 if (nrow(symsDF[symsDF$success==0,]) > 0) {
   print ("list of not retrieved symbols")
   symsDF[symsDF$success==0,]
+  # append troublesome symbol names to logfile
+  cat(c(paste("troublesome symbols for", start.time), symsDF[symsDF$success==0, "sym"]), 
+      file=paste(logDir, "troublesomeSymbols.log", sep="/"), 
+      sep="\n", 
+      append=TRUE)
 } else {
   print ("all symbols downloaded successfully")
   if (nrow(symsDF[symsDF$count>0,]) > 0) {
@@ -117,6 +126,8 @@ if (nrow(symsDF[symsDF$success==0,]) > 0) {
     symsDF[symsDF$count>0,]
   }
 }
+
+
 
 # save collected symbols in environment TSDATA to file 
 filename <- paste(dailyQuoteDir, paste0("Quotes-", format(Sys.Date(), "%Y-%m-%d"), ".Rdata"), sep="/")

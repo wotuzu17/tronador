@@ -59,6 +59,14 @@ if (currentFilename %in% list.files(dailyQuoteDir)) {
 # there is a problem with symbol LOW, remove it
 symbols <- symbols[symbols!="LOW"]
 
+# check sanity of other symbols
+for (sym in symbols) {
+  if (!qCheckTSforValidity(get(sym, envir=TSDATA), 720)) {
+    print (paste("omitting symbol", sym, "from processing."))
+    symbols <- symbols[symbols!=sym]
+  }
+}
+
 # copy symbol GSPC into global environment
 assign("GSPC", get("^GSPC", envir=TSDATA))
 
