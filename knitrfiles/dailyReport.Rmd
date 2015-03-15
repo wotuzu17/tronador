@@ -1,0 +1,55 @@
+---
+output: html_document
+---
+# Daily Report for `r format(Sys.time(), "%Y-%m-%d")`
+Report processed at `r format(Sys.time(), "%H:%M %Z")`.
+
+## Version 1_2
+```{r results='asis', echo=FALSE}
+v <- "v1_2"
+if (v %in% names(clean.tbllist) && nrow(clean.tbllist[[v]]) > 0) {
+  kable(clean.tbllist[[v]], row.names=FALSE) 
+} else {
+  print("nothing found.")
+}
+```
+
+## Version 1_3
+```{r results='asis', echo=FALSE}
+v <- "v1_3"
+if (v %in% names(clean.tbllist) && nrow(clean.tbllist[[v]]) > 0) {
+  kable(clean.tbllist[[v]], row.names=FALSE) 
+} else {
+  print("nothing found.")
+}
+```
+
+## Version 1_4
+```{r results='asis', echo=FALSE}
+v <- "v1_4"
+if (v %in% names(clean.tbllist) && nrow(clean.tbllist[[v]]) > 0) {
+  kable(clean.tbllist[[v]], row.names=FALSE) 
+} else {
+  print("nothing found.")
+}
+```
+
+## Version 2_1
+```{r results='asis', echo=FALSE}
+v <- "v2_1"
+if (v %in% names(clean.tbllist) && nrow(clean.tbllist[[v]]) > 0) {
+  kable(clean.tbllist[[v]], row.names=FALSE) 
+} else {
+  print("nothing found.")
+}
+```
+
+## Version 2_2
+```{r results='asis', echo=FALSE}
+v <- "v2_2"
+if (v %in% names(clean.tbllist) && nrow(clean.tbllist[[v]]) > 0) {
+  kable(clean.tbllist[[v]], row.names=FALSE) 
+} else {
+  print("nothing found.")
+}
+```
