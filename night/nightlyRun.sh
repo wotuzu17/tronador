@@ -11,7 +11,7 @@ display_usage() {
   echo -e "the time consuming nightlyRun_calculateStats.R scripts are parallelized."
   echo -e "the parameter sampleN determines the number of symbols to download.\n"
 	echo -e "Example1: $0 20    only download 20 symbols for tests"
-  echo -e "Example2: $0 all   donwload all symbols in targetSyms.Rdata"
+  echo -e "Example2: $0 0     donwload all symbols in targetSyms.Rdata"
 }
 
 # display usage when -h or --help is supplied
