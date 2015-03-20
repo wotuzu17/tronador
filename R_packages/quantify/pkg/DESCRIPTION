@@ -1,0 +1,11 @@
+Package: quantify
+Type: Package
+Title: functions to quantify time series
+Version: 0.1-1
+Date: 2014-07-29
+Author: Andreas Voellenklee
+Maintainer: Andreas Voellenklee <wotuzu17@gmail.com>
+Depends: R (>= 3.1), TTR (>= 0.22)
+Description: functions to filter pattern out of OHLC time series
+License: GPL-3
+LazyLoad: yes
