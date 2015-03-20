@@ -2,7 +2,7 @@
 
 display_usage() {
 	echo -e "\nUsage:\n$0 [version]"
-	echo -e "calculates quantify_groups_universal.R for periods 3,5,10,20\n"
+	echo -e "calculates quantify_groups.R for periods 3,5,10,20\n"
 	echo -e "Example: $0 v1_3"
 }
 
@@ -10,7 +10,7 @@ quantify_one_seed() {
 	for period in 3 5 10 20
 	do
 		echo "...period $period"
-		./quantify_groups_universal.R --version=$1 --future_periods=$period --seed=$2
+		./quantify_groups.R --version=$1 --future_periods=$period --seed=$2
 	done
 }
 
