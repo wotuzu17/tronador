@@ -12,6 +12,7 @@ dailyQuoteDir <- "/home/voellenk/tronador/dailyQuotes"
 plotDir <- "/home/voellenk/tronador/plots"
 logDir <- "/home/voellenk/.tronadorlog"
 historyYears <- 3
+retryLimit <- 2
 
 # load required packages
 suppressPackageStartupMessages(library(optparse))
@@ -80,7 +81,7 @@ symsDF <- data.frame(symsToDownload, 0, 0, stringsAsFactors = FALSE)
 colnames(symsDF) <- c("sym", "count", "success")
 finish <- FALSE
 while (!finish) {
-  remainingDF <- symsDF[symsDF$success==0 & symsDF$count<5,]
+  remainingDF <- symsDF[symsDF$success==0 & symsDF$count<retryLimit,]
   remainingDF <- remainingDF[with(remainingDF, order(count, sym)), ]
   if (is.data.frame(remainingDF) & nrow(remainingDF) > 0) {
     this.sym <- remainingDF[1,"sym"]
