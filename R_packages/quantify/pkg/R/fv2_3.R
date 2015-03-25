@@ -8,8 +8,8 @@ fv2_3 <- function(TS, MI=NULL) {
     }
   }
   # define global parameter
-  TS.ROCn <- c(1,4,10,30)
-  MI.ROCn <- c(1,4,10,30)
+  TS.ROCn <- c(1,4,30)
+  MI.ROCn <- c(1,4,30)
   steps <- c(.09, .2, .4, .6, .8, .91)
   CPos.n <- 200
   CPos.numberofsectors <- 4
