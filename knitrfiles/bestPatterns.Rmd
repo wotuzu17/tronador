@@ -1,0 +1,476 @@
+---
+title: "bestPatterns.Rmd"
+author: "Andreas Völlenklee"
+date: "07/31/2014"
+output: html_document
+toc: yes
+---
+
+```{r echo=FALSE}
+# some gobal definitions
+library(digest) # used to calculate crc32
+options(width=80)
+path <- "/home/voellenk/Dropbox/constellation" # base path for project
+```
+
+## Synopsis 
+In this document the performance of chart pattern among different groups of stocks is evaluated. It takes as input combinations-Rdata file(s). The best patterns are stored in a .Rdata file for further comparison among another subset of stocks / time horizons.
+
+## Loading data
+The time series are being analyzed by the Rscript `quantify_groups.R`. The performance of all possible pattern are calculated by the Rscript `calc_all_combinations.R`. As an output, either one or 25 .Rdata file with a list of data.frames `COMB.list` is stored in the Dropbox directory. This file / these files is read in with the following code chunk. 
+
+```{r}
+if (length(filenames == 1)) {
+  load(paste(input.dir, filenames[1], sep="/"))
+} else if (length(filenames == 25)) {
+  C.list <- list()
+  # read in all 25 files and combine them to one COMB.list
+  for (filename in filenames) {
+    load(paste(input.dir, filename, sep="/"))
+    C.list[[names(COMB.list)]] <- COMB.list[[1]]
+  }
+  COMB.list <- C.list
+} else {
+  stop ("ERROR: Either one or 25 filenames must be given.")
+}
+
+# determine and print out key vector
+key.vec <- c(1:(ncol(COMB.list[[1]])-2))
+merge.cols <- colnames(COMB.list[[1]][key.vec])
+merge.cols
+```
+
+```{r echo=FALSE}
+# function to calculate a merged data.frame of defined groups
+# groups is a vector of all groups that are taken for calculations
+mergeCombs <- function(groups) {
+  for (i in 1:length(groups)) {
+    this.group <- groups[i]
+    print(paste("doing group", this.group))
+    this.df <- COMB.list[[this.group]]
+    # in first iteration, prepare merged data.frame out of pattern columns
+    if (i == 1) {
+      merged.df <- this.df[,c(1:(ncol(this.df)-2))]
+    }
+    this.key <- this.df[,key.vec]
+    this.performance <- cbind(this.df[,"buyS"], this.df[,"sellS"])[,c(1,3,4)] # omit redundand n column
+    colnames(this.performance) <- c(paste(this.group, "med.buyS", sep="."),
+                                    paste(this.group, "med.sellS", sep="."),
+                                    paste(this.group, "n", sep="."))
+    
+    merged.df <- merge(merged.df, cbind(this.key, this.performance), by=merge.cols, all=TRUE)
+  }
+  return (merged.df)
+}
+
+# function to calculate summary.df
+calcSummary <- function(merged.df, minimum.obs=20) {
+  cols.buyS <- grep('med.buyS', names(merged.df))
+  cols.sellS <- grep('med.sellS', names(merged.df))
+  cols.n <- grep('.n', names(merged.df))
+  
+  summary.df <- merged.df[,key.vec]
+  summary.df$mean.buyS <- apply(merged.df[,cols.buyS], 1, mean, na.rm=TRUE)
+  summary.df$mean.sellS <- apply(merged.df[,cols.sellS], 1, mean, na.rm=TRUE)
+  summary.df$mean.n <- apply(merged.df[,cols.n], 1, mean, na.rm=TRUE)
+  summary.df$mean.n <- round(summary.df$mean.n)
+  
+  return (summary.df[summary.df$mean.n > minimum.obs, ])
+}
+
+# function adds column of key-ID to data.frame (previous method, no longer used)
+addCRC32 <- function(rdf, key.vec) {
+  df <- rdf[, key.vec]
+  svec <- apply(df, 1, paste, collapse="")
+  ID <- tapply(svec, 1:length(svec), digest, algo="crc32", ascii=TRUE)
+  rownames(rdf) <- ID
+  return(rdf)
+}
+
+# longer key to avoid multiple entries
+addxxhash64 <- function(rdf, key.vec) {
+  df <- rdf[, key.vec]
+  svec <- apply(df, 1, paste, collapse="")
+  ID <- tapply(svec, 1:length(svec), digest, algo="xxhash64", ascii=TRUE)
+  rownames(rdf) <- ID
+  return(rdf)
+}
+
+# simple version
+addNames <- function(rdf, key.vec) {
+  df <- rdf[, key.vec]
+  
+}
+```
+
+## Merging combinations of all groups
+```{r echo=FALSE}
+# all groups
+groups <- names(COMB.list)
+merged.df <- mergeCombs(groups)
+merged.df <- addxxhash64(merged.df, key.vec)
+
+# selection of groups
+groups.low.sd <- groups[grep('^G_[12]', groups)]
+merged.df.low.sd <- mergeCombs(groups.low.sd)
+merged.df.low.sd <- addxxhash64(merged.df.low.sd, key.vec)
+
+groups.high.sd <- groups[grep('^G_[345]', groups)]
+merged.df.high.sd <- mergeCombs(groups.high.sd)
+merged.df.high.sd <- addxxhash64(merged.df.high.sd, key.vec)
+
+groups.low.ret <- groups[grep('[345]$', groups)]
+merged.df.low.ret <- mergeCombs(groups.low.ret)
+merged.df.low.ret <- addxxhash64(merged.df.low.ret, key.vec)
+
+groups.high.ret <- groups[grep('[12]$', groups)]
+merged.df.high.ret <- mergeCombs(groups.high.ret)
+merged.df.high.ret <- addxxhash64(merged.df.high.ret, key.vec)
+
+# quadrants Low sd, low return, etc.
+groups.LSLR <- groups[grep('^G_[12]_[345]$', groups)]
+merged.df.LSLR <- mergeCombs(groups.LSLR)
+merged.df.LSLR <- addxxhash64(merged.df.LSLR, key.vec)
+
+groups.LSHR <- groups[grep('^G_[12]_[12]$', groups)]
+merged.df.LSHR <- mergeCombs(groups.LSHR)
+merged.df.LSHR <- addxxhash64(merged.df.LSHR, key.vec)
+
+groups.HSLR <- groups[grep('^G_[345]_[345]$', groups)]
+merged.df.HSLR <- mergeCombs(groups.HSLR)
+merged.df.HSLR <- addxxhash64(merged.df.HSLR, key.vec)
+
+groups.HSHR <- groups[grep('^G_[345]_[12]$', groups)]
+merged.df.HSHR <- mergeCombs(groups.HSHR)
+merged.df.HSHR <- addxxhash64(merged.df.HSHR, key.vec)
+```
+
+The resulting data.frame merged.df contains the key columns and 3 columns for each group: `G_x_y.med.sellS`, `G_x_y.med.buyS` and `G_x_y.n`. The data.frame summary.df contains the key columns and 3 columns representing the mean value of `buyS`, `sellS`, `n`.
+
+```{r}
+summary.df <- calcSummary(merged.df)
+summary.df.low.sd <- calcSummary(merged.df.low.sd)
+summary.df.high.sd <- calcSummary(merged.df.high.sd)
+summary.df.low.ret <- calcSummary(merged.df.low.ret)
+summary.df.high.ret <- calcSummary(merged.df.high.ret)
+summary.df.LSLR <- calcSummary(merged.df.LSLR)
+summary.df.LSHR <- calcSummary(merged.df.LSHR)
+summary.df.HSLR <- calcSummary(merged.df.HSLR)
+summary.df.HSHR <- calcSummary(merged.df.HSHR)
+```
+
+```{r echo=FALSE}
+# helper function: remove pattern with equal result. df must be sorted by top pattern descending.
+reduceResult <- function(df, cutoff=10){
+  n<-1
+  i<-1
+  while (n<=cutoff) {
+    if (!(df[i,"mean.buyS"]==df[i+1,"mean.buyS"] && 
+        df[i,"mean.sellS"]==df[i+1,"mean.sellS"] &&
+        df[i,"mean.n"]==df[i+1,"mean.n"])) {
+      this.row <- df[i,]
+      if (n==1) {
+        ret.df <- this.row
+      } else {
+        ret.df <- rbind(ret.df, this.row)
+      }
+      n <- n+1
+    }
+    i <- i+1    
+  }
+  return (ret.df)
+}
+
+consistentResults <- function(df, keycols, groups, min=.9) {
+  perfcols <- c("mean.buyS", "mean.sellS", "mean.n")
+  threshold <- ceiling(length(groups)*min)
+  consistentBuy <- data.frame()
+  consistentSell <- data.frame()
+  for (i in 1:nrow(df)) {
+    pos.groups <- 0
+    neg.groups <- 0
+    for (j in 1:length(groups)) {
+      bc <- paste0(groups[j], ".med.buyS")
+      sc <- paste0(groups[j], ".med.sellS")
+      if (!is.na(df[i, bc]) && !is.na(df[i, sc])) {
+        if (df[i, bc] >= df[i, sc]) {
+          pos.groups <- pos.groups+1
+        } else if (df[i, sc] >= df[i, bc]) {
+          neg.groups <- neg.groups+1
+        }        
+      } else {
+        pos.groups <-pos.groups+1
+        neg.groups <-neg.groups+1
+      }
+    }
+    if (pos.groups >= threshold) {
+      consistentBuy <- rbind(consistentBuy, cbind(df[i,keycols], df[i,perfcols], pos.groups))
+    } else if (neg.groups >= threshold) {
+      consistentSell <- rbind(consistentSell, cbind(df[i,keycols], df[i,perfcols], neg.groups))
+    }
+  }
+  return(list(consistentBuy, consistentSell))
+}
+
+### build list of best results out of a summary.df
+bestResults <- function(summary.df, merged.df, groups, cutoff=300){
+  res <- list()
+  top.mean.buyS <- summary.df[with(summary.df, order(-mean.buyS)),]
+  res[['topBuyS']] <- reduceResult(top.mean.buyS, cutoff=cutoff)
+  
+  top.mean.sellS <- summary.df[with(summary.df, order(-mean.sellS)),]
+  res[['topSellS']] <- reduceResult(top.mean.sellS, cutoff=cutoff)
+
+  top.max.pos.diff <- summary.df[with(summary.df, order(-(mean.buyS-mean.sellS))),]
+  res[['topMaxDiffBuyS']] <- reduceResult(top.max.pos.diff, cutoff=cutoff)
+  
+  top.max.neg.diff <- summary.df[with(summary.df, order(-(mean.sellS-mean.buyS))),]
+  res[['topMaxDiffSellS']] <- reduceResult(top.max.neg.diff, cutoff=cutoff)
+
+  merged.top.df <- merge(rbind(res$topMaxDiffBuyS, res$topMaxDiffSellS), merged.df, by=merge.cols, all=FALSE)
+  merged.top.df <- addxxhash64(merged.top.df, key.vec)
+  cres.list <- consistentResults(merged.top.df, key.vec, groups, min=.8)
+  
+  if (nrow(cres.list[[1]]) > 0) {
+    res[['consistentPos']] <- cres.list[[1]][with(cres.list[[1]], 
+                           order(-pos.groups, -(mean.buyS-mean.sellS))), ][1:min(100,nrow(cres.list[[1]])),]    
+  } else {
+    res[['consistentPos']] <- data.frame()
+  }
+
+  # if statement to avoid execution error at sort command
+  if (nrow(cres.list[[2]]) > 0) {
+    res[['consistentNeg']] <- cres.list[[2]][with(cres.list[[2]], 
+                           order(-neg.groups, -(mean.sellS-mean.buyS))), ][1:min(100,nrow(cres.list[[2]])),]   
+  } else {
+    res[['consistentNeg']] <- data.frame()    
+  }
+
+  return (res)
+}
+```
+
+## Outstanding patterns
+### overall all groups
+#### highest mean signal
+```{r}
+res <- list()
+res <- bestResults(summary.df, merged.df, groups)
+
+res$topBuyS[1:16,]
+res$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res$topMaxDiffBuyS[1:16,]
+res$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res$consistentPos
+res$consistentNeg
+```
+
+
+### groups with low sd
+#### highest mean signal
+```{r}
+res.low.sd <- list()
+res.low.sd <- bestResults(summary.df.low.sd, merged.df.low.sd, groups.low.sd)
+
+res.low.sd$topBuyS[1:16,]
+res.low.sd$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.low.sd$topMaxDiffBuyS[1:16,]
+res.low.sd$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.low.sd$consistentPos
+res.low.sd$consistentNeg
+```
+
+
+
+
+### groups with high sd
+#### highest mean signal
+```{r}
+res.high.sd <- list()
+res.high.sd <- bestResults(summary.df.high.sd, merged.df.high.sd, groups.high.sd)
+
+res.high.sd$topBuyS[1:16,]
+res.high.sd$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.high.sd$topMaxDiffBuyS[1:16,]
+res.high.sd$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.high.sd$consistentPos
+res.high.sd$consistentNeg
+```
+
+
+
+
+### groups with low median return
+```{r}
+res.low.ret <- list()
+res.low.ret <- bestResults(summary.df.low.ret, merged.df.low.ret, groups.low.ret)
+
+res.low.ret$topBuyS[1:16,]
+res.low.ret$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.low.ret$topMaxDiffBuyS[1:16,]
+res.low.ret$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.low.ret$consistentPos
+res.low.ret$consistentNeg
+```
+
+
+
+
+### groups with high median return
+```{r}
+res.high.ret <- list()
+res.high.ret <- bestResults(summary.df.high.ret, merged.df.high.ret, groups.high.ret)
+
+res.high.ret$topBuyS[1:16,]
+res.high.ret$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.high.ret$topMaxDiffBuyS[1:16,]
+res.high.ret$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.high.ret$consistentPos
+res.high.ret$consistentNeg
+```
+
+
+
+
+### groups in quadrant low sd, low return
+```{r}
+res.LSLR <- list()
+res.LSLR <- bestResults(summary.df.LSLR, merged.df.LSLR, groups.LSLR)
+
+res.LSLR$topBuyS[1:16,]
+res.LSLR$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.LSLR$topMaxDiffBuyS[1:16,]
+res.LSLR$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.LSLR$consistentPos
+res.LSLR$consistentNeg
+```
+
+
+
+
+### groups in quadrant low sd, high return
+```{r}
+res.LSHR <- list()
+res.LSHR <- bestResults(summary.df.LSHR, merged.df.LSHR, groups.LSHR)
+
+res.LSHR$topBuyS[1:16,]
+res.LSHR$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.LSHR$topMaxDiffBuyS[1:16,]
+res.LSHR$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.LSHR$consistentPos
+res.LSHR$consistentNeg
+```
+
+
+
+
+### groups in quadrant high sd, low return
+```{r}
+res.HSLR <- list()
+res.HSLR <- bestResults(summary.df.HSLR, merged.df.HSLR, groups.HSLR)
+
+res.HSLR$topBuyS[1:16,]
+res.HSLR$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.HSLR$topMaxDiffBuyS[1:16,]
+res.HSLR$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.HSLR$consistentPos
+res.HSLR$consistentNeg
+```
+
+
+
+
+### groups in quadrant high sd, high return
+```{r}
+res.HSHR <- list()
+res.HSHR <- bestResults(summary.df.HSHR, merged.df.HSHR, groups.HSHR)
+
+res.HSHR$topBuyS[1:16,]
+res.HSHR$topSellS[1:16,]
+```
+
+#### highest difference
+```{r}
+res.HSHR$topMaxDiffBuyS[1:16,]
+res.HSHR$topMaxDiffSellS[1:16,]
+```
+
+#### pattern with consistent buyS > sellS in all groups
+```{r}
+res.HSHR$consistentPos
+res.HSHR$consistentNeg
+```
+
+## Store results
+The results of this report are stored in a .RData variable in the Dropbox directory /constellation/bestPatterns. 
+```{r}
+savepath <- paste(path, "bestPatterns", sep="/")
+savefilename <- sub("help=FALSE_C.Rdata$", "bestPatterns.Rdata", filename)
+save(list=c("res", "res.low.sd", "res.high.sd", "res.low.ret", "res.high.ret",
+            "res.LSLR", "res.LSHR", "res.HSLR", "res.HSHR"), 
+     file=paste(savepath, savefilename, sep="/"))
+```

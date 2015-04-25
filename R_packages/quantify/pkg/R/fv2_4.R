@@ -1,5 +1,5 @@
 # strategy compares performance of time series with market index
-fv2_3 <- function(TS, MI=NULL) {
+fv2_4 <- function(TS, MI=NULL) {
   if (is.null(MI)) {
     if (is.xts(GSPC)) {
       MI <- GSPC # assume that S&P500 is located in global environment     
@@ -8,8 +8,8 @@ fv2_3 <- function(TS, MI=NULL) {
     }
   }
   # define global parameter
-  TS.ROCn <- c(1,4,30)
-  MI.ROCn <- c(1,4,30)
+  TS.ROCn <- c(1,3,30)
+  MI.ROCn <- c(1,20)
   steps <- c(.09, .2, .5, .8, .91)
   CPos.n <- 200
   CPos.numberofsectors <- 4
